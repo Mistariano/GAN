@@ -34,5 +34,3 @@ class NeuralNet:
             self.nls[i].test()
 
 
-def sigmoid(n):
-    return 1/(1+pow(2.718,n))

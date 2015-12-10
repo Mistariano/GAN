@@ -2,6 +2,7 @@ __author__ = 'MisT'
 
 import random
 
+
 def getGene(n):
     ans=0
     for i in range(0,n):
