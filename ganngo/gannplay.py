@@ -34,7 +34,7 @@ class GANNPlay(GoPlay):
                 #         inputs.append(0)
                 #     else:
                 #         inputs.append(3)
-        print inputs
+        #print inputs
         if self.nextPlayer:
             ans = self.nn_b.workout(input=inputs)
         else:
@@ -47,10 +47,11 @@ class GANNPlay(GoPlay):
                     max=ans[i]
                     index=i
         if max==-1:
-            print 'isitover?'
-            os.system('pause')
-        self.x=index/self.size+1
-        self.y=index%self.size+1
+            self.x=-1
+            self.y=-1
+        else:
+            self.x=index/self.size+1
+            self.y=index%self.size+1
     def output(self):
         draw=self.draw()
         print
@@ -70,7 +71,7 @@ class GANNPlay(GoPlay):
                 if j==0:
                     print '..',
             print
-        self.output_qi()
+        #self.output_qi()
 
         #os.system('pause')
 
@@ -89,7 +90,7 @@ class GANNPlay(GoPlay):
             print
 
 if __name__=='__main__':
-    nn1=GANueNet(3,[25,100,25])
-    play=GANNPlay(size=5,nnb=nn1,nnw=nn1)
+    nn1=GANueNet(3,[361,100,361])
+    play=GANNPlay(size=19,nnb=nn1,nnw=nn1)
     play.loop()
 

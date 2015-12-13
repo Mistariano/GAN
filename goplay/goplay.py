@@ -1,3 +1,5 @@
+#coding=utf8
+
 __author__ = 'MisT'
 
 from gopoint import GoPoint
@@ -14,6 +16,7 @@ class GoPlay:
         self.size = size
         self.MIN=0
         self.MAX=self.size+1
+        self.is_pass=0
         # self.board=[[0 for j in range(0,size+2)]for i in range(0,size+2)]
         self.board=[[GoPoint(x=i,y=j,color=GoPoint.NULL) for j in range(0,self.MAX+1)]for i in range(0,self.MAX+1)]
         #print board
@@ -31,6 +34,7 @@ class GoPlay:
     def loop(self):
         self.nextPlayer=True
         while not self.end():
+
             self.get_xy()
             # self.get_x()
             # self.get_y()
@@ -43,6 +47,11 @@ class GoPlay:
                     os.system('pause')
                 self.get_xy()
             print self.nextPlayer,'to',self.x,self.y
+            if self.is_pass:
+                if self.x==-1:
+                    self.is_pass+=1
+                else:
+                    self.is_pass=0
             self.clean_frbidn()
             # self.scan()
             self.output()
@@ -59,58 +68,69 @@ class GoPlay:
         self.get_y()
 
     def move(self):
+    #判断虚手：
+        if self.x==-1:
+            if not self.is_pass:
+                self.is_pass=1
+            return 0
+    #判断落子合法性：
         if self.board[self.x][self.y].color!=GoPoint.NULL:
             print 'You can not move here'
             return 1
-
+    #确定当前颜色：
         if self.nextPlayer:
             color=GoPoint.BLACK
         else:
             color=GoPoint.WHITE
-
-
-        safe_copy=copy.deepcopy(self.board)
-
-        self.board[self.x][self.y].move(color=color)
-
+    #禁止自填真眼：
         cnt1=0
         cnt2=0
-        for i in[[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1],\
-                 [self.x+1,self.y+1],[self.x-1,self.y-1],[self.x-1,self.y+1],[self.x+1,self.y-1]]:
+        for i in[[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
             if self.board[i[0]][i[1]].color==color:
                 cnt1+=1
             elif self.board[i[0]][i[1]].color==GoPoint.WALL:
                 cnt2+=1
-        if (not cnt2) and (cnt1>=7):
-            self.board[self.x][self.y].become_frbidn()
-            return 1
-        elif cnt2+cnt1==8:
-            self.board[self.x][self.y].become_frbidn()
-            return 1
-
+        if cnt1+cnt2==4:
+            for i in [[self.x+1,self.y+1],[self.x-1,self.y-1],[self.x-1,self.y+1],[self.x+1,self.y-1]]:
+                if self.board[i[0]][i[1]].color==color:
+                    cnt1+=1
+                elif self.board[i[0]][i[1]].color==GoPoint.WALL:
+                    cnt2+=1
+            if (not cnt2) and (cnt1>=7):
+                self.board[self.x][self.y].become_frbidn()
+                return 1
+            elif cnt2+cnt1==8:
+                self.board[self.x][self.y].become_frbidn()
+                return 1
+    #备份：
+        safe_copy=copy.deepcopy(self.board)
+    #着子：
+        self.board[self.x][self.y].move(color=color)
+    #数气：
         for i in [[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
             if self.board[i[0]][i[1]].qi==-1:
                 self.board[self.x][self.y].qi+=1
-
+    #紧气：
         for i in [[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
-
             if self.board[i[0]][i[1]].qi>0:
                 self.board[i[0]][i[1]].qi-=1
+            #连子：
                 if self.board[i[0]][i[1]].color==color:
                     self.group_union(g1=[self.x,self.y],g2=i)
+            #试提子：
                 else:
-                    print 'now checking to kill from',i
+                    #print 'now checking to kill from',i
                     self.group_check(g=i)
-
-        print 'now checking',[self.x,self.y]
+    #检查合法性：
+        #print 'now checking',[self.x,self.y]
         if self.group_check(g=[self.x,self.y]):
-            print 'ohoh'
+            #print 'ohoh'
             self.board=copy.deepcopy(safe_copy)
             self.board[self.x][self.y].become_frbidn()
             return 1
-        print 'allright.'
-        print 'qi:',self.board[self.x][self.y].qi
-
+        #print 'allright.'
+        #print 'qi:',self.board[self.x][self.y].qi
+    #禁全局同形：
         v=self.board_value()
         self.copy_value(copy=safe_copy)
         if v in self.bf:
@@ -125,9 +145,8 @@ class GoPlay:
             self.MAXC*=2
             new=BloomFilter(capacity=self.MAXC)
             self.bf=new.union(other=self.bf)
+    #结束：
         return 0
-                # print'plus',i
-        # print 'qi:',self.board[self.x][self.y].qi
 
     # def scan(self):
     #     pass
@@ -138,7 +157,38 @@ class GoPlay:
                     self.board[i][j].color=GoPoint.NULL
 
     def end(self):
-        return False
+        if self.is_pass!=4:
+            return 0
+        cnt={GoPoint.BLACK:0,GoPoint.WHITE:0}
+        for i in range(1,self.MAX):
+            for j in range(1,self.MAX):
+                if self.board[i][j].qi>=0:
+                    cnt[self.board[i][j].color]+=1
+                else:
+                    tmp=-1
+                    flag=True
+                    for p in [[i+1,j],[i,j+1],[i-1,j],[i,j-1]]:
+                        if self.board[p[0]][p[1]].qi>0:
+                            c=self.board[p[0]][p[1]].color
+                            if tmp==-1:
+                                tmp=c
+                                continue
+                            if tmp!=c:
+                                flag=False
+                                break
+                    if tmp!=-1 and flag:
+                        cnt[tmp]+=1
+        print 'BLACK:',cnt[GoPoint.BLACK]
+        print 'WHITE:',cnt[GoPoint.WHITE]
+        if cnt[GoPoint.BLACK]>cnt[GoPoint.WHITE]:
+            self.win=1
+            print 'BLACK is winner.'
+        else:
+            self.win=0
+            print 'WHITE is winner.'
+        return 1
+
+
 
     def group_find(self,g):
         if self.board[g[0]][g[1]].group==g:
@@ -160,12 +210,12 @@ class GoPlay:
             for t in self.board[queue[i][0]][queue[i][1]].get_member():
                 queue.append(t)
             i+=1
-        print 'group:',queue
+        #print 'group:',queue
         for group in queue:
             if self.board[group[0]][group[1]].qi>0:
                 return 0
 
-        print 'died:',g
+        #print 'died:',g
 
         for group in queue:
             self.board[group[0]][group[1]].die()
@@ -194,14 +244,9 @@ class GoPlay:
             for j in range(1,self.MAX):
                 ans+=copy[i][j].output()
                 ans<<=2
-        print ans
+        #print ans
         return ans
     def output(self):
-        # for i in range(1,self.MAX):
-        #     for j in range(1,self.MAX):
-        #         #print self.board[i][j],
-        #         self.board[i][j].output()
-        #     print
         print self.draw()
 
 if __name__ == '__main__':
