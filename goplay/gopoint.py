@@ -4,9 +4,10 @@ class GoPoint:
     NULL=0
     BLACK=1
     WHITE=2
-    BLACK_FORBIDDENED=3
-    WHITE_FORBIDDENED=4
-    ALL_FORBIDDENED=5
+    # BLACK_FORBIDDENED=3
+    # WHITE_FORBIDDENED=4
+    # ALL_FORBIDDENED=5
+    FORBIDDENED=3
     WALL=6
 
     def __init__(self,x,y,color):
@@ -34,7 +35,13 @@ class GoPoint:
 
     def become_wall(self):
         self.color=GoPoint.WALL
-        self.qi=0
+        self.qi=-666
+
+    def become_frbidn(self):
+        self.color=GoPoint.FORBIDDENED
+        self.qi=-1
+        self.group=[self.x,self.y]
+        self.member=[[self.x,self.y]]
 
     def output(self):
         if self.color!=GoPoint.BLACK and self.color!=GoPoint.WHITE:

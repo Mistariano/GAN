@@ -1,10 +1,16 @@
 __author__ = 'MisT'
 
 from gopoint import GoPoint
+from pybloom import BloomFilter
+import os
+import copy
 
 class GoPlay:
 
     def __init__(self, size):
+        self.MAXC=1000
+        self.cnt_c=0
+        self.bf=BloomFilter(capacity=self.MAXC)
         self.size = size
         self.MIN=0
         self.MAX=self.size+1
@@ -28,7 +34,16 @@ class GoPlay:
             self.get_xy()
             # self.get_x()
             # self.get_y()
-            self.move()
+            i=0
+            print 'moving...'
+            while self.move():
+                i+=1
+                if i > 1000:
+                    print'move too much'
+                    os.system('pause')
+                self.get_xy()
+            print self.nextPlayer,'to',self.x,self.y
+            self.clean_frbidn()
             # self.scan()
             self.output()
             self.nextPlayer=not self.nextPlayer
@@ -44,43 +59,83 @@ class GoPlay:
         self.get_y()
 
     def move(self):
-        if self.nextPlayer:
-            while\
-                self.board[self.x][self.y].color!=GoPoint.NULL\
-            and\
-                self.board[self.x][self.y].color!=GoPoint.WHITE_FORBIDDENED\
-            :
-                print 'You can not move here'
-                self.get_xy()
-            color=GoPoint.BLACK
+        if self.board[self.x][self.y].color!=GoPoint.NULL:
+            print 'You can not move here'
+            return 1
 
+        if self.nextPlayer:
+            color=GoPoint.BLACK
         else:
-            while\
-                self.board[self.x][self.y].color!=GoPoint.NULL\
-            and\
-                self.board[self.x][self.y].color!=GoPoint.BLACK_FORBIDDENED\
-            :
-                print 'You can not move here'
-                self.get_xy()
             color=GoPoint.WHITE
+
+
+        safe_copy=copy.deepcopy(self.board)
 
         self.board[self.x][self.y].move(color=color)
 
-        for i in [[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
+        cnt1=0
+        cnt2=0
+        for i in[[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1],\
+                 [self.x+1,self.y+1],[self.x-1,self.y-1],[self.x-1,self.y+1],[self.x+1,self.y-1]]:
             if self.board[i[0]][i[1]].color==color:
-                self.group_union(g1=[self.x,self.y],g2=i)
-            elif self.board[i[0]][i[1]].qi>0:
-                self.board[i[0]][i[1]].qi-=1
-                # print 'check',self.group_check(g=i)
-                self.group_check(g=i)
+                cnt1+=1
+            elif self.board[i[0]][i[1]].color==GoPoint.WALL:
+                cnt2+=1
+        if (not cnt2) and (cnt1>=7):
+            self.board[self.x][self.y].become_frbidn()
+            return 1
+        elif cnt2+cnt1==8:
+            self.board[self.x][self.y].become_frbidn()
+            return 1
+
         for i in [[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
-            if self.board[i[0]][i[1]].qi<0:
+            if self.board[i[0]][i[1]].qi==-1:
                 self.board[self.x][self.y].qi+=1
+
+        for i in [[self.x+1,self.y],[self.x-1,self.y],[self.x,self.y+1],[self.x,self.y-1]]:
+
+            if self.board[i[0]][i[1]].qi>0:
+                self.board[i[0]][i[1]].qi-=1
+                if self.board[i[0]][i[1]].color==color:
+                    self.group_union(g1=[self.x,self.y],g2=i)
+                else:
+                    print 'now checking to kill from',i
+                    self.group_check(g=i)
+
+        print 'now checking',[self.x,self.y]
+        if self.group_check(g=[self.x,self.y]):
+            print 'ohoh'
+            self.board=copy.deepcopy(safe_copy)
+            self.board[self.x][self.y].become_frbidn()
+            return 1
+        print 'allright.'
+        print 'qi:',self.board[self.x][self.y].qi
+
+        v=self.board_value()
+        self.copy_value(copy=safe_copy)
+        if v in self.bf:
+            self.board=copy.deepcopy(safe_copy)
+            self.board[self.x][self.y].become_frbidn()
+            return 1
+        self.bf.add(v)
+        self.cnt_c+=1
+        if self.cnt_c>=self.MAXC:
+            print 'bf is too little,continue?'
+            os.system('pause')
+            self.MAXC*=2
+            new=BloomFilter(capacity=self.MAXC)
+            self.bf=new.union(other=self.bf)
+        return 0
                 # print'plus',i
         # print 'qi:',self.board[self.x][self.y].qi
 
     # def scan(self):
     #     pass
+    def clean_frbidn(self):
+        for i in range(1,self.MAX):
+            for j in range(1,self.MAX):
+                if self.board[i][j].qi==-1:
+                    self.board[i][j].color=GoPoint.NULL
 
     def end(self):
         return False
@@ -105,15 +160,42 @@ class GoPlay:
             for t in self.board[queue[i][0]][queue[i][1]].get_member():
                 queue.append(t)
             i+=1
+        print 'group:',queue
         for group in queue:
             if self.board[group[0]][group[1]].qi>0:
                 return 0
+
+        print 'died:',g
+
         for group in queue:
             self.board[group[0]][group[1]].die()
+            for i in [[group[0]+1,group[1]],[group[0]-1,group[1]],[group[0],group[1]+1],[group[0],group[1]-1]]:
+                if self.board[i[0]][i[1]].qi>=0:
+                    self.board[i[0]][i[1]].qi+=1
+
+
         return 1
+
+
     def draw(self):
         return [[self.board[i][j].output() for j in range(1,self.MAX)]for i in range(1,self.MAX)]
 
+    def board_value(self):
+        ans=0
+        for i in range(1,self.MAX):
+            for j in range(1,self.MAX):
+                ans+=self.board[i][j].output()
+                ans<<=2
+        print ans
+        return ans
+    def copy_value(self,copy):
+        ans=0
+        for i in range(1,self.MAX):
+            for j in range(1,self.MAX):
+                ans+=copy[i][j].output()
+                ans<<=2
+        print ans
+        return ans
     def output(self):
         # for i in range(1,self.MAX):
         #     for j in range(1,self.MAX):
