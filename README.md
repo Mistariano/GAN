@@ -1,0 +1,3 @@
+# GAN
+* 高中时候瞎j2写的，现在看来完全是胡闹hhhhhhhh
+* 名字是胡起的，和生成对抗网络（Generative Adversarial Nets）毛关系都没有……
